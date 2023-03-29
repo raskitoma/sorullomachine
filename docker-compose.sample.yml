@@ -1,0 +1,21 @@
+services:
+  sorullobot:
+    build: .
+    image: sorullobot:v1
+    container_name: sorullobot
+    hostname: sorullobot
+    restart: always
+    ports:
+      - 18123:8123
+    environment:
+      - DISCORD_TOKEN=DISCORDTOKEN
+      - OPENAI_API_KEY=OPENAI_API_KEY
+    # Recommended to setup a volume for the settings file
+    # networks setup depends on intercomm between other container stacks. Depends on declaration near the end of this file.
+    # networks:
+    #   master_network: # this is the network name
+
+# setup network if required
+# networks:
+#   master_network:
+#     external: True
