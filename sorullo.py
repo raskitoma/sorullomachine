@@ -56,7 +56,7 @@ async def hello(ctx):
 @client.command()
 async def whoami(ctx):
     embed = discord.Embed()
-    embed.set_image(url="https://www.thatsdominican.com/wp-content/uploads/2018/12/johnny-ventura-3.jpg")
+    embed.set_image(url="https://i.scdn.co/image/ab6761610000e5eb281b74d7d806bf014a15fcad")
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -72,7 +72,7 @@ Here is more info about my name, based on a song called "Capullo y Sorullo" by J
 
 {response['choices'][0]['message']['content']}
 
-About my creator: @Raskitoma#1194. https://raskitoma.com
+Version 1.0 by https://raskitoma.com
 '''
     await ctx.send(full_response, embed=embed)
 
@@ -87,10 +87,7 @@ async def generate(ctx):
         ]
         
     )
-    full_response = f'''{ctx.author.mention} here is what I got:
-    
-    {response['choices'][0]['message']['content']}
-    '''
+    full_response = f"{ctx.author.mention} here is what I got:\n{response['choices'][0]['message']['content']}"
     await ctx.send(full_response)
         
 @client.command()
