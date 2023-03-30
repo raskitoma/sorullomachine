@@ -56,8 +56,8 @@ async def hello(ctx):
 @client.command()
 async def whoami(ctx):
     embed = discord.Embed(
-        title="Sorullo Bot",
-        description="Sorullo Bot is a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to generate text and images.",
+        title="Sorullo",
+        description="Sorullo is a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to analyze and generate text and images.",
     )
     embed.set_image(url="https://i.scdn.co/image/ab6761610000e5eb281b74d7d806bf014a15fcad")
     embed.set_author(
@@ -76,8 +76,9 @@ async def whoami(ctx):
     )
     full_response = f'''Hi, {ctx.author.mention} here are more details about me:
     
-I'm a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to generate text and images.
-I'm currently in development, so I'm not very smart yet, but I'm learning.
+I'm a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to analyze and generate text and images.
+
+I'm currently under development, so I'm not very smart yet, but I'm learning.
     
 Here is more info about my name, based on a song called "Capullo y Sorullo" by Johnny Ventura:
 
