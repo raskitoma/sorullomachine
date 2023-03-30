@@ -35,8 +35,21 @@ client.remove_command("help")
 
 @client.group(invoke_without_command=True)
 async def help(ctx):
+    embed = discord.Embed(
+        title="Sorullo",
+        description="Sorullo is a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to analyze and generate text and images.",
+    )
+    embed.set_image(url="https://i.scdn.co/image/ab6761610000e5eb281b74d7d806bf014a15fcad")
+    embed.set_author(
+        name="Raskitoma",
+        url="https://raskitoma.com",
+    )
+    embed.set_footer(
+        text="Sorullo Bot by Raskitoma, version 1.0a",
+        icon_url="https://raskitoma.com/assets/media/rask-favicon.svg"
+    )
     await ctx.send(f'''
-    Hello {ctx.author.mention}, these are the commands:
+    Hello {ctx.author.mention} - available commands:
     ```
   - !help                  : This message
   - !whoami                : Get more info about this bot,
@@ -46,8 +59,7 @@ async def help(ctx):
   - !analyze <text> <image>: Analyze a message with GPT-4
                              (not available at the moment).
     ```
-    ''')
-
+    ''', embed=embed)
 
 @client.command()
 async def hello(ctx):
