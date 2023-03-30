@@ -39,6 +39,7 @@ async def help(ctx):
     Hello {ctx.author.mention}, these are the commands:
     ```
   - !help                  : This message
+  - !whoami                : Get more info about this bot,
   - !hello                 : Make Sorullo say hello to you,
   - !generate <text>       : Generate text with GPT-3,
   - !pintame <text>        : Generate an image with DALL-E,
@@ -53,6 +54,29 @@ async def hello(ctx):
     await ctx.send(f'Hello {ctx.author.mention}!: oye sorullo, el negrito es el único tuyo, https://youtu.be/H3JW7-fsHL8?t=136')
 
 @client.command()
+async def whoami(ctx):
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "user", "content": "Biografía de cantante Johnny Ventura"},
+        ]
+    )
+    full_response = f'''Hi, {ctx.author.mention} here are more details about me.
+    I'm a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to generate text and images.
+    I'm currently in development, so I'm not very smart yet, but I'm learning.
+    
+    Here is more info about my name, based on a song called "Capullo y Sorullo" by Johnny Ventura:
+    
+    {response['choices'][0]['message']['content']}
+    
+    https://www.thatsdominican.com/wp-content/uploads/2018/12/johnny-ventura-3.jpg
+    
+    About my creator: @Raskitoma#1194. https://raskitoma.com
+    '''
+    await ctx.send(full_response)
+
+
+@client.command()
 async def generate(ctx):
     message = ctx.message.content.replace(f'{COMMANDS_PREFIX}generate ', '')
     response = openai.ChatCompletion.create(
@@ -62,7 +86,11 @@ async def generate(ctx):
         ]
         
     )
-    await ctx.send(response['choices'][0]['message']['content'])
+    full_response = f'''{ctx.author.mention} here is what I got:
+    
+    {response['choices'][0]['message']['content']}
+    '''
+    await ctx.send(full_response)
         
 @client.command()
 async def pintame(ctx):
@@ -73,17 +101,20 @@ async def pintame(ctx):
         size="1024x1024"
     )
     result = response["data"][0]["url"]
-    await ctx.send(result)
+    full_response = f'''{ctx.author.mention} here is what I painted:
+    {result}
+    '''
+    await ctx.send(full_response)
     
 @client.command()
-async def analyze(ctx, *, message):
+async def analyze(ctx):
     if GPT4AVAILABLE == "False":
-        await ctx.send("GPT-4 API is not available at the moment.")
+        await ctx.send(f"I'm sorry {ctx.author.mention}, GPT-4 API is not available at the moment.")
         
-    input_content= [message.content]
+    input_content= [ctx.message.content]
     
-    if message.attachments:
-        for attachment in message.attachments:
+    if ctx.message.attachments:
+        for attachment in ctx.message.attachments:
             image_bytes = await attachment.read()
             input_content.append({"image": image_bytes})
             
