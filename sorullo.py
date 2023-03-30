@@ -55,25 +55,26 @@ async def hello(ctx):
 
 @client.command()
 async def whoami(ctx):
+    embed = discord.Embed()
+    embed.set_image(url="https://www.thatsdominican.com/wp-content/uploads/2018/12/johnny-ventura-3.jpg")
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "user", "content": "Biografía de cantante Johnny Ventura"},
         ]
     )
-    full_response = f'''Hi, {ctx.author.mention} here are more details about me.
-    I'm a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to generate text and images.
-    I'm currently in development, so I'm not very smart yet, but I'm learning.
+    full_response = f'''Hi, {ctx.author.mention} here are more details about me:
     
-    Here is more info about my name, based on a song called "Capullo y Sorullo" by Johnny Ventura:
+I'm a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to generate text and images.
+I'm currently in development, so I'm not very smart yet, but I'm learning.
     
-    {response['choices'][0]['message']['content']}
-    
-    https://www.thatsdominican.com/wp-content/uploads/2018/12/johnny-ventura-3.jpg
-    
-    About my creator: @Raskitoma#1194. https://raskitoma.com
-    '''
-    await ctx.send(full_response)
+Here is more info about my name, based on a song called "Capullo y Sorullo" by Johnny Ventura:
+
+{response['choices'][0]['message']['content']}
+
+About my creator: @Raskitoma#1194. https://raskitoma.com
+'''
+    await ctx.send(full_response, embed=embed)
 
 
 @client.command()
