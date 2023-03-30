@@ -55,8 +55,19 @@ async def hello(ctx):
 
 @client.command()
 async def whoami(ctx):
-    embed = discord.Embed()
+    embed = discord.Embed(
+        title="Sorullo Bot",
+        description="Sorullo Bot is a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to generate text and images.",
+    )
     embed.set_image(url="https://i.scdn.co/image/ab6761610000e5eb281b74d7d806bf014a15fcad")
+    embed.set_author(
+        name="Raskitoma",
+        url="https://raskitoma.com",
+    )
+    embed.set_footer(
+        text="Sorullo Bot by Raskitoma, version 1.0a",
+        icon_url="https://raskitoma.com/assets/media/rask-favicon.svg"
+    )
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -71,8 +82,6 @@ I'm currently in development, so I'm not very smart yet, but I'm learning.
 Here is more info about my name, based on a song called "Capullo y Sorullo" by Johnny Ventura:
 
 {response['choices'][0]['message']['content']}
-
-Version 1.0 by https://raskitoma.com
 '''
     await ctx.send(full_response, embed=embed)
 
@@ -98,11 +107,11 @@ async def pintame(ctx):
         n=2,
         size="1024x1024"
     )
+    embed = discord.Embed()
     result = response["data"][0]["url"]
-    full_response = f'''{ctx.author.mention} here is what I painted:
-    {result}
-    '''
-    await ctx.send(full_response)
+    embed.set_image(url=result)
+    full_response = f"{ctx.author.mention} here is what I painted:"
+    await ctx.send(full_response, embed=embed)
     
 @client.command()
 async def analyze(ctx):
