@@ -14,6 +14,7 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 # customizable env vars via docker-compose
 ENV DISCORD_TOKEN=DISCORDTOKEN
 ENV OPENAI_API_KEY=OPENAI_API_KEY
+ENV GPT4AVAILABLE=False
 
 # create required folders
 RUN mkdir -p /app
