@@ -314,7 +314,6 @@ async def analyze(ctx):
     logger.info('starting...')
     if GPT4AVAILABLE == "False":
         await ctx.send(f"I'm sorry {ctx.author.mention}, GPT-4 API is not available at the moment.", reference=ctx.message.to_reference())
-        
     messagetoai = ctx.message.content.replace(f'{COMMANDS_PREFIX}analyze ', '')
     # Lets figure out if there's a contect
     if CONTEXT_SEPARATOR in messagetoai:
