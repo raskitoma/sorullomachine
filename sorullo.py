@@ -161,6 +161,7 @@ class ChatBot(commands.Bot):
         if message.content.startswith(f'<@{self.user.id}> {COMMANDS_PREFIX}'):
             message.content = message.content.replace(f'<@{self.user.id}> {COMMANDS_PREFIX}', f'{COMMANDS_PREFIX}')
         logger.info(f'{message.created_at} - Channel: {message.channel} | {message.author} said: {message.content}')
+        await message.channel.typing()
         await self.process_commands(message)
         
 # Bot commands
@@ -207,6 +208,7 @@ async def help(ctx):
 # Creating hello command
 @client.command()
 async def hello(ctx):
+    await ctx.channel.typing()
     await ctx.send(f'Hello {ctx.author.mention}!: oye sorullo, el negrito es el único tuyo, https://youtu.be/H3JW7-fsHL8?t=136', reference=ctx.message.to_reference())
 
 # Creating whoami command
@@ -247,7 +249,6 @@ I'm a bot that uses GPT-4(_not available yet!_), GPT-3 and DALL-E to analyze and
 # Creating generate command using GPT-3
 @client.command()
 async def generate(ctx):
-    ctx.channel.typing()
     message = ctx.message.content.replace(f'{COMMANDS_PREFIX}generate ', '')
     try:
         response = openai.ChatCompletion.create(
@@ -311,22 +312,27 @@ async def variants(ctx):
 @client.command()
 async def analyze(ctx):
     logger.info('starting...')
-    ctx.channel.typing()
     if GPT4AVAILABLE == "False":
         await ctx.send(f"I'm sorry {ctx.author.mention}, GPT-4 API is not available at the moment.", reference=ctx.message.to_reference())
         
     messagetoai = ctx.message.content.replace(f'{COMMANDS_PREFIX}analyze ', '')
-    
     # Lets figure out if there's a contect
     if CONTEXT_SEPARATOR in messagetoai:
         context, messagetoai = messagetoai.split(CONTEXT_SEPARATOR)
         logger.info(f'Context: {context}')
         logger.info(f'Message: {messagetoai}')
+        messages = [
+            {"role": "system", "content": context},
+            {"role": "user", "content": messagetoai}
+        ]
     else:
         context = None
         logger.info(f'Message, no context: {messagetoai}')
+        messages = [
+            {"role": "user", "content": messagetoai}
+        ]
         
-    input_content = [messagetoai]
+    input_content = messagetoai # gpt-4 model is not able to interpret/analyze images yet as of aug-17/2023
     
     if ctx.message.attachments:
         for attachment in ctx.message.attachments:
@@ -336,15 +342,11 @@ async def analyze(ctx):
             
     response = openai.ChatCompletion.create(
         model="gpt-4",
-        messages=[
-            {"role": "system", "content": context},
-            {"role": "user", "content": input_content}
-        ]
+        messages=messages
     )
     
     assistant_response = response['choices'][0]['message']['content']
     await ctx.send(assistant_response, reference=ctx.message.to_reference())
-
 
 # Logging setup
 logger = logging.getLogger('sorullo')
@@ -354,10 +356,4 @@ handler.setLevel(logging.DEBUG)
 coloredlogs.install()
 
 # Start bot
-# client.run(DISCORD_TOKEN)
-
-
-if __name__ == "__main__":
-    bot = ChatBot(command_prefix=COMMANDS_PREFIX, intents=intents)
-    bot.run(DISCORD_TOKEN)
-
+client.run(DISCORD_TOKEN)
