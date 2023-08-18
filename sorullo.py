@@ -6,6 +6,7 @@ import openai
 from discord.ext import commands
 from discord import File
 import requests
+import logging, coloredlogs
 from PIL import Image
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -22,6 +23,7 @@ VARIANTS_DEFAULT = 4
 LABEL_VARIANT = "V"
 LABEL_UPSCALE = "U"
 DEFAULT_SCALE_FACTOR = 2
+CONTEXT_SEPARATOR = "|"
 
 # Helper functions
 async def find_replies_to(ctx, user:discord.Member):
@@ -151,21 +153,23 @@ class ChatBot(commands.Bot):
         super().__init__(*args, **kwargs)
                    
     async def on_ready(self):
-        print(f'{self.user} has connected to Discord!')
+        logger.info(f'{self.user} has connected to Discord!')
         
     async def on_message(self, message):
         if message.author == self.user:
             return
         if message.content.startswith(f'<@{self.user.id}> {COMMANDS_PREFIX}'):
             message.content = message.content.replace(f'<@{self.user.id}> {COMMANDS_PREFIX}', f'{COMMANDS_PREFIX}')
-        print(f'{message.created_at} - Channel: {message.channel} | {message.author} said: {message.content}')
+        logger.info(f'{message.created_at} - Channel: {message.channel} | {message.author} said: {message.content}')
         await self.process_commands(message)
         
 # Bot commands
 client = ChatBot(command_prefix=COMMANDS_PREFIX, intents=intents)
 
+# Removing default help to put our own
 client.remove_command("help")
 
+# Creating help command
 @client.group(invoke_without_command=True)
 async def help(ctx):
     embed = discord.Embed(
@@ -191,17 +195,21 @@ async def help(ctx):
   - !paint <text>    : Generate images with DALL-E,
   - !variants        : Generate variants of an image, sent on a
                        previous message,
-  - !analyze <text>  : Analyze a message with GPT-4.
+  - !analyze <context> | <text>  : Analyze a message with GPT-4.
+                       If you don't provide a context, Sorullo 
+                       will use the full text you provide.
                        Attach an image if you want
                        an analysis of it.
                        (not available at the moment).
     ```
     ''', embed=embed, reference=ctx.message.to_reference())
 
+# Creating hello command
 @client.command()
 async def hello(ctx):
     await ctx.send(f'Hello {ctx.author.mention}!: oye sorullo, el negrito es el único tuyo, https://youtu.be/H3JW7-fsHL8?t=136', reference=ctx.message.to_reference())
 
+# Creating whoami command
 @client.command()
 async def whoami(ctx):
     embed = discord.Embed(
@@ -236,34 +244,46 @@ I'm a bot that uses GPT-4(_not available yet!_), GPT-3 and DALL-E to analyze and
 '''
     await ctx.send(full_response, embed=embed, reference=ctx.message.to_reference())
 
+# Creating generate command using GPT-3
 @client.command()
 async def generate(ctx):
+    ctx.channel.typing()
     message = ctx.message.content.replace(f'{COMMANDS_PREFIX}generate ', '')
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "user", "content": message},
-        ]
-        
-    )
-    full_response = f"{ctx.author.mention} here is what I got:\n{response['choices'][0]['message']['content']}"
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "user", "content": message},
+            ]
+            
+        )
+        full_response = f"{ctx.author.mention} here is what I got:\n{response['choices'][0]['message']['content']}"
+    except Exception as e:
+        full_response = f"I'm sorry {ctx.author.mention}, I can't generate text right now."
+        logger.error(e)    
     await ctx.send(full_response, reference=ctx.message.to_reference())
         
+# Creating paint command using DALL-E        
 @client.command()
 async def paint(ctx):
     prompt = ctx.message.content.replace(f'{COMMANDS_PREFIX}paint ', '')
-    response = openai.Image.create(
-        prompt=prompt,
-        n=VARIANTS_DEFAULT,
-        size="1024x1024"
-    )
-    my_embeds = create_embed_image_objects(response["data"])
-    buttons = create_buttons_variants(response["data"])
-    buttons1 = create_buttons_upscale(response["data"])
-    buttons_all = ButtonView(buttons + buttons1)
-    message = f"{ctx.author.mention} here are the pictures that my ones and zeroes painted:"
-    await ctx.send(message, embeds=my_embeds, view=buttons_all, reference=ctx.message.to_reference())
+    try:
+        response = openai.Image.create(
+            prompt=prompt,
+            n=VARIANTS_DEFAULT,
+            size="1024x1024"
+        )
+        my_embeds = create_embed_image_objects(response["data"])
+        buttons = create_buttons_variants(response["data"])
+        buttons1 = create_buttons_upscale(response["data"])
+        buttons_all = ButtonView(buttons + buttons1)
+        message = f"{ctx.author.mention} here are the pictures that my ones and zeroes painted:"
+        await ctx.send(message, embeds=my_embeds, view=buttons_all, reference=ctx.message.to_reference())
+    except Exception as e:
+        await ctx.send(f"I'm really sorry {ctx.author.mention}, I can't paint right now, have a headache.", reference=ctx.message.to_reference())
+        logger.error(e)
         
+# Creating variants command using DALL-E and one of the previous images        
 @client.command()
 async def variants(ctx):
     get_last_replies = await find_replies_to(ctx, ctx.author)
@@ -271,38 +291,73 @@ async def variants(ctx):
     if image is None:
         await ctx.send(f"I'm sorry {ctx.author.mention}, I can't find any image to generate a variant.", reference=ctx.message.to_reference())
         return
-    response = openai.Image.create_variation(
-        image=image,
-        n=VARIANTS_DEFAULT,
-        size="1024x1024"
-    )
-    my_embeds = create_embed_image_objects(response["data"])
-    buttons = create_buttons_variants(response["data"])
-    buttons1 = create_buttons_upscale(response["data"])
-    buttons_all = ButtonView(buttons + buttons1)
-    message = f"{ctx.author.mention} here is a variation of the previous pic:"
-    await ctx.send(message, embeds=my_embeds, view=buttons_all, reference=ctx.message.to_reference())
-    
+    try:
+        response = openai.Image.create_variation(
+            image=image,
+            n=VARIANTS_DEFAULT,
+            size="1024x1024"
+        )
+        my_embeds = create_embed_image_objects(response["data"])
+        buttons = create_buttons_variants(response["data"])
+        buttons1 = create_buttons_upscale(response["data"])
+        buttons_all = ButtonView(buttons + buttons1)
+        message = f"{ctx.author.mention} here is a variation of the previous pic:"
+        await ctx.send(message, embeds=my_embeds, view=buttons_all, reference=ctx.message.to_reference())
+    except Exception as e:
+        await ctx.send(f"I'm sorry {ctx.author.mention}, I can't generate a variant right now, have a headache.", reference=ctx.message.to_reference())
+        logger.error(e)
+        
+# Creating analyze command using GPT-4    
 @client.command()
 async def analyze(ctx):
+    logger.info('starting...')
+    ctx.channel.typing()
     if GPT4AVAILABLE == "False":
         await ctx.send(f"I'm sorry {ctx.author.mention}, GPT-4 API is not available at the moment.", reference=ctx.message.to_reference())
         
-    input_content= [ctx.message.content]
+    messagetoai = ctx.message.content.replace(f'{COMMANDS_PREFIX}analyze ', '')
+    
+    # Lets figure out if there's a contect
+    if CONTEXT_SEPARATOR in messagetoai:
+        context, messagetoai = messagetoai.split(CONTEXT_SEPARATOR)
+        logger.info(f'Context: {context}')
+        logger.info(f'Message: {messagetoai}')
+    else:
+        context = None
+        logger.info(f'Message, no context: {messagetoai}')
+        
+    input_content = [messagetoai]
     
     if ctx.message.attachments:
         for attachment in ctx.message.attachments:
             image_bytes = await attachment.read()
             input_content.append({"image": image_bytes})
+            logger.info(f'Image attached: {attachment.filename}')
             
     response = openai.ChatCompletion.create(
         model="gpt-4",
-        messages=[{"role": "user", "content": input_content}]
+        messages=[
+            {"role": "system", "content": context},
+            {"role": "user", "content": input_content}
+        ]
     )
     
     assistant_response = response['choices'][0]['message']['content']
     await ctx.send(assistant_response, reference=ctx.message.to_reference())
 
 
-client.run(DISCORD_TOKEN)
+# Logging setup
+logger = logging.getLogger('sorullo')
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+coloredlogs.install()
+
+# Start bot
+# client.run(DISCORD_TOKEN)
+
+
+if __name__ == "__main__":
+    bot = ChatBot(command_prefix=COMMANDS_PREFIX, intents=intents)
+    bot.run(DISCORD_TOKEN)
 
