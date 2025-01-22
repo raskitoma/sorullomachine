@@ -2,17 +2,20 @@ from io import BytesIO
 import os
 from urllib.parse import urlparse
 import discord
-import openai
+# import openai
 from discord.ext import commands
 from discord import File
 import requests
 import logging, coloredlogs
 from PIL import Image
+from openai import OpenAI
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GPT4AVAILABLE = os.getenv("GPT4AVAILABLE")
-openai.api_key = OPENAI_API_KEY
+OPENAI_MODEL = os.getenv("OPENAI_MODEL")
+OPENAI_MODEL_IMG = os.getenv("OPENAI_MODEL_IMG")
+aiClient = OpenAI()
+aiClient.api_key = OPENAI_API_KEY
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -66,7 +69,7 @@ def extract_domain(url):
 def create_embed_image_objects(response):
     my_embeds = []
     for image in response:
-        url = image["url"]
+        url = image.url
         embed = discord.Embed(url=extract_domain(url))
         embed.set_image(url=url)
         my_embeds.append(embed)
@@ -76,7 +79,7 @@ def create_buttons_variants(response):
     my_buttons = []
     for i, _ in enumerate(response):
         label = f'{LABEL_VARIANT}{i+1}'
-        url = response[i]["url"]
+        url = response[i].url
         button = VariantButton(label=label, custom_id=label, row=0, kurl=url)
         my_buttons.append(button)
     return my_buttons
@@ -85,7 +88,7 @@ def create_buttons_upscale(response):
     my_buttons = []
     for i, _ in enumerate(response):
         label = f'{LABEL_UPSCALE}{i+1}'
-        url = response[i]["url"]
+        url = response[i].url
         button = UpscaleButton(label=label, custom_id=label, row=1, kurl=url)
         my_buttons.append(button)
     return my_buttons
@@ -112,14 +115,15 @@ class VariantButton(discord.ui.Button):
         if response is None:
             await interaction.response.send_message(f"I'm sorry {interaction.user.mention}, I can't find any image to generate a variant.", reference=interaction.message.to_reference())
             return
-        response = openai.Image.create_variation(
+        response = aiClient.images.create_variation(
             image=response,
             n=VARIANTS_DEFAULT,
             size="1024x1024"
         )
-        my_embeds = create_embed_image_objects(response["data"])
-        buttons = create_buttons_variants(response["data"])
-        buttons1 = create_buttons_upscale(response["data"])
+        image_data = response.data
+        my_embeds = create_embed_image_objects(image_data)
+        buttons = create_buttons_variants(image_data)
+        buttons1 = create_buttons_upscale(image_data)
         buttons_all = ButtonView(buttons + buttons1)
         message = f"{interaction.user.mention} here are variations of {self.label}:"
         await interaction.channel.send(content=message, embeds=my_embeds, view=buttons_all, reference=interaction.message.to_reference())
@@ -158,11 +162,19 @@ class ChatBot(commands.Bot):
     async def on_message(self, message):
         if message.author == self.user:
             return
-        if message.content.startswith(f'<@{self.user.id}> {COMMANDS_PREFIX}'):
-            message.content = message.content.replace(f'<@{self.user.id}> {COMMANDS_PREFIX}', f'{COMMANDS_PREFIX}')
-        logger.info(f'{message.created_at} - Channel: {message.channel} | {message.author} said: {message.content}')
-        await message.channel.typing()
-        await self.process_commands(message)
+        
+        if self.user.mentioned_in(message):
+            await message.channel.typing()
+            content_without_mention = message.content.replace(f'<@{self.user.id}>', '').strip()
+            
+            logger.info(f'{message.created_at} - Channel: {message.channel} | {message.author} said: {content_without_mention}')
+            
+            if not content_without_mention.startswith(COMMANDS_PREFIX):
+                message.content = f'{COMMANDS_PREFIX}generate {content_without_mention}'
+            else:
+                message.content = content_without_mention
+                
+        await self.process_commands(message) 
         
 # Bot commands
 client = ChatBot(command_prefix=COMMANDS_PREFIX, intents=intents)
@@ -175,7 +187,7 @@ client.remove_command("help")
 async def help(ctx):
     embed = discord.Embed(
         title="Sorullo",
-        description="Sorullo is a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to analyze and generate text and images.",
+        description="Sorullo is a bot that uses OpenAI and DALL-E to analyze and generate text and images.",
     )
     embed.set_image(url="https://i.scdn.co/image/ab6761610000e5eb281b74d7d806bf014a15fcad")
     embed.set_author(
@@ -183,7 +195,7 @@ async def help(ctx):
         url="https://raskitoma.com",
     )
     embed.set_footer(
-        text="Sorullo Bot by Raskitoma, version 1.0a",
+        text="Sorullo Bot by Raskitoma, version 2.0a",
         icon_url="https://raskitoma.com/assets/media/rask-favicon.svg"
     )
     await ctx.send(f'''
@@ -192,16 +204,15 @@ async def help(ctx):
   - !help            : This message
   - !whoami          : Get more info about this bot,
   - !hello           : Make Sorullo say hello to you,
-  - !generate <text> : Generate text with GPT-3,
-  - !paint <text>    : Generate images with DALL-E,
+  - !generate <text> : Generate text,
+  - !imagine <text>  : Generate images with DALL-E,
   - !variants        : Generate variants of an image, sent on a
                        previous message,
-  - !analyze <context> | <text>  : Analyze a message with GPT-4.
+  - !analyze <context> | <text>  : Analyze a message.
                        If you don't provide a context, Sorullo 
                        will use the full text you provide.
                        Attach an image if you want
                        an analysis of it.
-                       (not available at the moment).
     ```
     ''', embed=embed, reference=ctx.message.to_reference())
 
@@ -216,7 +227,7 @@ async def hello(ctx):
 async def whoami(ctx):
     embed = discord.Embed(
         title="Sorullo",
-        description="Sorullo is a bot that uses GPT-4(not available yet!), GPT-3 and DALL-E to analyze and generate text and images.",
+        description="Sorullo is a bot that uses GPT and DALL-E to analyze and generate text and images.",
     )
     embed.set_image(url="https://i.scdn.co/image/ab6761610000e5eb281b74d7d806bf014a15fcad")
     embed.set_author(
@@ -224,64 +235,73 @@ async def whoami(ctx):
         url="https://raskitoma.com",
     )
     embed.set_footer(
-        text="Sorullo Bot by Raskitoma, version 1.0a",
+        text="Sorullo Bot by Raskitoma, version 2.0a",
         icon_url="https://raskitoma.com/assets/media/rask-favicon.svg"
     )
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+    
+    response = aiClient.chat.completions.create(
+        model=OPENAI_MODEL,
         messages=[
-            {"role": "user", "content": "Biografía de cantante Johnny Ventura in english"},
+            {
+                "role" : "system",
+                "content" : "You are a discord bot and you are going to introduce yourself. You can use, in your response, markdown, since your response will be used in discord. You must give your response in no more than 1500 characters"
+            },
+            {
+                "role" : "user",
+                "content" : "Biography of singer Johnny Ventura in english, no more that 2 paragraphs, max 1500 letters in total length"
+            }
         ]
     )
-    full_response = f'''Hi, {ctx.author.mention} here are more details about me:
     
-I'm a bot that uses GPT-4(_not available yet!_), GPT-3 and DALL-E to analyze and generate text and images.
-
-> I'm currently under development, so I'm not very smart yet, but I'm learning.
+    full_response = f"Hi, {ctx.author.mention} I'm a bot that uses OpenAI technologies (GPT and DALL-E) to analyze and generate text and images. My name, is based on a song called \"Capullo y Sorullo\" by Johnny Ventura. \n{ response.choices[0].message.content }"
     
-**Here is more info about my name, based on a song called "Capullo y Sorullo" by Johnny Ventura:**
-```
-{response['choices'][0]['message']['content']}
-```
-'''
     await ctx.send(full_response, embed=embed, reference=ctx.message.to_reference())
 
-# Creating generate command using GPT-3
+# Creating generate command using GPT
 @client.command()
 async def generate(ctx):
     message = ctx.message.content.replace(f'{COMMANDS_PREFIX}generate ', '')
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+        response = aiClient.chat.completions.create(
+            model=OPENAI_MODEL,
             messages=[
-                {"role": "user", "content": message},
+                {
+                    "role" : "system",
+                    "content" : "You are a discord bot, you try to give your most accurate response and you can use markdown to stylish your response since you are writing into discord. Also your reponse will be consice, precise and no more than 1700 characters in total lenght."
+                },
+                {
+                    "role" : "user",
+                    "content" : message
+                }
             ]
-            
         )
-        full_response = f"{ctx.author.mention} here is what I got:\n{response['choices'][0]['message']['content']}"
+
+        full_response = f"{ctx.author.mention} { response.choices[0].message.content }"
     except Exception as e:
         full_response = f"I'm sorry {ctx.author.mention}, I can't generate text right now."
         logger.error(e)    
     await ctx.send(full_response, reference=ctx.message.to_reference())
         
-# Creating paint command using DALL-E        
+# Creating imagine command using DALL-E        
 @client.command()
-async def paint(ctx):
-    prompt = ctx.message.content.replace(f'{COMMANDS_PREFIX}paint ', '')
+async def imagine(ctx):
+    prompt = ctx.message.content.replace(f'{COMMANDS_PREFIX}imagine ', '')
     try:
-        response = openai.Image.create(
+        response = aiClient.images.generate(
+            model=OPENAI_MODEL_IMG,
             prompt=prompt,
-            n=VARIANTS_DEFAULT,
-            size="1024x1024"
+            n=1,
+            quality="hd"
         )
-        my_embeds = create_embed_image_objects(response["data"])
-        buttons = create_buttons_variants(response["data"])
-        buttons1 = create_buttons_upscale(response["data"])
+        image_data = response.data
+        my_embeds = create_embed_image_objects(image_data)
+        buttons = create_buttons_variants(image_data)
+        buttons1 = create_buttons_upscale(image_data)
         buttons_all = ButtonView(buttons + buttons1)
-        message = f"{ctx.author.mention} here are the pictures that my ones and zeroes painted:"
+        message = f"{ctx.author.mention} here are the pictures that my ones and zeroes imagined:"
         await ctx.send(message, embeds=my_embeds, view=buttons_all, reference=ctx.message.to_reference())
     except Exception as e:
-        await ctx.send(f"I'm really sorry {ctx.author.mention}, I can't paint right now, have a headache.", reference=ctx.message.to_reference())
+        await ctx.send(f"I'm really sorry {ctx.author.mention}, I can't imagine anything right now, have a headache.", reference=ctx.message.to_reference())
         logger.error(e)
         
 # Creating variants command using DALL-E and one of the previous images        
@@ -293,14 +313,16 @@ async def variants(ctx):
         await ctx.send(f"I'm sorry {ctx.author.mention}, I can't find any image to generate a variant.", reference=ctx.message.to_reference())
         return
     try:
-        response = openai.Image.create_variation(
+        response = aiClient.images.create_variation(
+            model=OPENAI_MODEL_IMG,
             image=image,
             n=VARIANTS_DEFAULT,
             size="1024x1024"
         )
-        my_embeds = create_embed_image_objects(response["data"])
-        buttons = create_buttons_variants(response["data"])
-        buttons1 = create_buttons_upscale(response["data"])
+        image_data = response.data
+        my_embeds = create_embed_image_objects(image_data)
+        buttons = create_buttons_variants(image_data)
+        buttons1 = create_buttons_upscale(image_data)
         buttons_all = ButtonView(buttons + buttons1)
         message = f"{ctx.author.mention} here is a variation of the previous pic:"
         await ctx.send(message, embeds=my_embeds, view=buttons_all, reference=ctx.message.to_reference())
@@ -312,39 +334,56 @@ async def variants(ctx):
 @client.command()
 async def analyze(ctx):
     logger.info('starting...')
-    if GPT4AVAILABLE == "False":
-        await ctx.send(f"I'm sorry {ctx.author.mention}, GPT-4 API is not available at the moment.", reference=ctx.message.to_reference())
+    context = None
     messagetoai = ctx.message.content.replace(f'{COMMANDS_PREFIX}analyze ', '')
-    # Lets figure out if there's a contect
+
+    # Lets figure out if there's a context   
     if CONTEXT_SEPARATOR in messagetoai:
         context, messagetoai = messagetoai.split(CONTEXT_SEPARATOR)
-        logger.info(f'Context: {context}')
-        logger.info(f'Message: {messagetoai}')
-        messages = [
-            {"role": "system", "content": context},
-            {"role": "user", "content": messagetoai}
-        ]
-    else:
-        context = None
-        logger.info(f'Message, no context: {messagetoai}')
-        messages = [
-            {"role": "user", "content": messagetoai}
-        ]
-        
-    input_content = messagetoai # gpt-4 model is not able to interpret/analyze images yet as of aug-17/2023
+
+    image_url = None
     
-    if ctx.message.attachments:
-        for attachment in ctx.message.attachments:
-            image_bytes = await attachment.read()
-            input_content.append({"image": image_bytes})
-            logger.info(f'Image attached: {attachment.filename}')
-            
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
+    attachments = ctx.message.attachments
+    
+    if attachments:
+        for attachment in attachments:
+            if attachment.content_type and attachment.content_type.startswith('image/'):
+                image_url = attachment.url
+                break
+    
+    messages = []
+    
+    if context:
+        messages.append({
+            "role" : "system",
+            "content" : f"{ context }. Please be very precise on your response, its lenght must be in no more than 1800 characters or you can split in multiple messages. Use markdown for the answer is desired."
+        })
+        
+    user_content = [
+        { "type" : "text", "text" : messagetoai }
+    ]
+    
+    if image_url:
+        user_content.append( 
+            { 
+                "type" : "image_url",
+                "image_url" : { 
+                    "url" : image_url 
+                }
+            } 
+        )
+        
+    messages.append({
+        "role" : "user",
+        "content" : user_content
+    })
+
+    response = aiClient.chat.completions.create(
+        model=OPENAI_MODEL,
         messages=messages
     )
     
-    assistant_response = response['choices'][0]['message']['content']
+    assistant_response = response.choices[0].message.content
     await ctx.send(assistant_response, reference=ctx.message.to_reference())
 
 # Logging setup
