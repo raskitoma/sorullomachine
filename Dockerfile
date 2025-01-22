@@ -1,7 +1,7 @@
 # Dockerfile
-FROM python:3.10-slim-buster
+FROM python:3.11-slim-buster
 LABEL MAINTAINER="Raskitoma/EAJ"
-LABEL VERSION="1.0"
+LABEL VERSION="2.0"
 LABEL LICENSE="GPLv3"
 LABEL DESCRIPTION="Raskitoma - SorulloMachine Bot OpenAI"
 
@@ -14,7 +14,8 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 # customizable env vars via docker-compose
 ENV DISCORD_TOKEN=DISCORDTOKEN
 ENV OPENAI_API_KEY=OPENAI_API_KEY
-ENV GPT4AVAILABLE=False
+ENV OPENAI_MODEL=gpt-4o
+ENV OPENAI_MODEL_IMG=dall-e-3
 
 # create required folders
 RUN mkdir -p /app
