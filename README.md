@@ -19,3 +19,7 @@ The idea is to test OpenAI API with model "gpt-4" and see how it works, but sadl
 Depends on the name you set to your bot in Discord, you just need to mention it and then type your message. For example, if you named your bot `sorullo`, you can type `@sorullo !help` and it will reply with a list of all available commands.
 
 WiP
+
+## Quality Gate Status
+
+[![Quality gate](https://sonarqube.raskitoma.com/api/project_badges/quality_gate?project=raskitoma_sorullomachine_AYoBOW4aUMwKFMWes56S3&token=sqb_8d34e0d65ff9c4f5ff4e1738996d4f7223efb675)](https://sonarqube.raskitoma.com/dashboard?id=raskitoma_sorullomachine_AYoBOW4aUMwKFMWes56S3)
