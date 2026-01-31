@@ -8,7 +8,7 @@ import requests
 import logging, coloredlogs
 from PIL import Image
 from openai import OpenAI
-from aihttp import web
+from aiohttp import web
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
