@@ -8,6 +8,7 @@ import requests
 import logging, coloredlogs
 from PIL import Image
 from openai import OpenAI
+from aihttp import web
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -154,6 +155,23 @@ class UpscaleButton(discord.ui.Button):
 class ChatBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.health_port = 8123
+        
+    async def health_check_handler(self, request):
+        return web.Response(text="OK", status=200)
+
+    async def start_health_check(self):
+        app = web.Application()
+        app.router.add_get('/health', self.health_check_handler)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', self.health_port)
+        await site.start()
+        logger.info(f"Health check server started on port {self.health_port}")
+
+    async def setup_hook(self):
+        # This runs before the bot starts its main loop
+        self.loop.create_task(self.start_health_check())        
                    
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord!')
